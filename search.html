@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-search"></i> Search</h4>
+
+<form method="GET" class="row g-2 mb-4">
+    <div class="col-auto">
+        <select name="category" class="form-select form-select-sm">
+            <option value="treks"  {% if category == 'treks'  %}selected{% endif %}>Treks</option>
+            <option value="users"  {% if category == 'users'  %}selected{% endif %}>Users</option>
+            <option value="staff"  {% if category == 'staff'  %}selected{% endif %}>Staff</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Search..." value="{{ q }}" required>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-success">Search</button>
+    </div>
+</form>
+
+{% if q %}
+<p class="text-muted">Results for <strong>"{{ q }}"</strong> in <strong>{{ category }}</strong>: {{ results | length }} found</p>
+
+{% if results %}
+<div class="table-responsive">
+<table class="table table-hover table-bordered bg-white">
+    <thead class="table-light">
+        {% if category == 'treks' %}
+        <tr><th>ID</th><th>Name</th><th>Location</th><th>Difficulty</th><th>Status</th></tr>
+        {% else %}
+        <tr><th>ID</th><th>Username</th><th>Email</th><th>Blacklisted</th></tr>
+        {% endif %}
+    </thead>
+    <tbody>
+    {% for r in results %}
+        <tr>
+            <td>{{ r.id }}</td>
+            {% if category == 'treks' %}
+                <td>{{ r.name }}</td>
+                <td>{{ r.location }}</td>
+                <td>{{ r.difficulty }}</td>
+                <td>{{ r.status }}</td>
+            {% else %}
+                <td>{{ r.username }}</td>
+                <td>{{ r.email }}</td>
+                <td>{{ 'Yes' if r.is_blacklisted else 'No' }}</td>
+            {% endif %}
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No results found.</p>
+{% endif %}
+{% endif %}
+{% endblock %}

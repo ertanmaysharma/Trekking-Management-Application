@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Staff{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-people"></i> Staff</h4>
+
+<form method="GET" class="d-flex mb-3 gap-2" style="max-width:400px;">
+    <input type="text" name="q" class="form-control form-control-sm" placeholder="Search by name or email" value="{{ q }}">
+    <button class="btn btn-sm btn-outline-success">Search</button>
+    {% if q %}<a href="{{ url_for('main.admin_staff') }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
+</form>
+
+{% if staff_users %}
+<div class="table-responsive">
+<table class="table table-hover table-bordered bg-white align-middle">
+    <thead class="table-info">
+        <tr>
+            <th>#</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Contact</th>
+            <th>Status</th>
+            <th>Blacklisted</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for u in staff_users %}
+        <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.username }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.staff_profile.contact if u.staff_profile else '—' }}</td>
+            <td>
+                {% if u.staff_profile and u.staff_profile.is_approved %}
+                    <span class="badge bg-success">Approved</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if u.is_blacklisted %}
+                    <span class="badge bg-danger">Yes</span>
+                {% else %}
+                    <span class="badge bg-secondary">No</span>
+                {% endif %}
+            </td>
+            <td class="d-flex gap-1">
+                {% if u.staff_profile and not u.staff_profile.is_approved %}
+                <form method="POST" action="{{ url_for('main.admin_approve_staff', id=u.id) }}">
+                    <button class="btn btn-sm btn-success">Approve</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('main.admin_blacklist_staff', id=u.id) }}"
+                      onsubmit="return confirm('Toggle blacklist for {{ u.username }}?')">
+                    <button class="btn btn-sm btn-{{ 'secondary' if u.is_blacklisted else 'danger' }}">
+                        {{ 'Unblacklist' if u.is_blacklisted else 'Blacklist' }}
+                    </button>
+                </form>
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No staff found{% if q %} for "{{ q }}"{% endif %}.</p>
+{% endif %}
+{% endblock %}

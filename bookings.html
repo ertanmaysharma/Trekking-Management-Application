@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}All Bookings{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-journal-check"></i> All Bookings</h4>
+
+{% if bookings %}
+<div class="table-responsive">
+<table class="table table-hover table-bordered bg-white align-middle">
+    <thead class="table-warning">
+        <tr>
+            <th>#</th>
+            <th>User</th>
+            <th>Trek</th>
+            <th>Location</th>
+            <th>Booked On</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for b in bookings %}
+        <tr>
+            <td>{{ b.id }}</td>
+            <td>{{ b.user.username }}</td>
+            <td>{{ b.trek.name }}</td>
+            <td>{{ b.trek.location }}</td>
+            <td>{{ b.booking_date.strftime('%d %b %Y %H:%M') }}</td>
+            <td>
+                {% if b.status == 'Booked' %}<span class="badge bg-success">Booked</span>
+                {% elif b.status == 'Cancelled' %}<span class="badge bg-danger">Cancelled</span>
+                {% else %}<span class="badge bg-info">Completed</span>{% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted">No bookings yet.</p>
+{% endif %}
+{% endblock %}
