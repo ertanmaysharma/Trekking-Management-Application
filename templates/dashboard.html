@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-person-badge"></i> Staff Dashboard</h4>
+<p class="text-muted">Welcome, <strong>{{ user.username }}</strong>. Here are your assigned treks.</p>
+
+{% if treks %}
+<div class="row g-3">
+{% for trek in treks %}
+<div class="col-md-6">
+    <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-start">
+            <h5 class="mb-1">{{ trek.name }}</h5>
+            {% set sc = {'Pending':'secondary','Open':'success','Closed':'danger','Completed':'info'} %}
+            <span class="badge bg-{{ sc.get(trek.status, 'secondary') }}">{{ trek.status }}</span>
+        </div>
+        <p class="text-muted mb-1"><i class="bi bi-geo-alt"></i> {{ trek.location }}</p>
+        <p class="text-muted mb-1"><i class="bi bi-calendar"></i>
+            {{ trek.start_date.strftime('%d %b %Y') if trek.start_date else 'TBD' }}
+            {% if trek.end_date %} — {{ trek.end_date.strftime('%d %b %Y') }}{% endif %}
+        </p>
+        <p class="mb-2">Slots: <strong>{{ trek.available_slots }}</strong> / {{ trek.total_slots }}</p>
+        <a href="{{ url_for('main.staff_trek_detail', id=trek.id) }}" class="btn btn-sm btn-success">Manage</a>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-map fs-1"></i>
+    <p class="mt-2">No treks assigned to you yet.</p>
+</div>
+{% endif %}
+{% endblock %}
