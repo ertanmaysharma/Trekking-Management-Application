@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Browse Treks{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-signpost-2"></i> Browse Treks</h4>
+
+<form method="GET" class="row g-2 mb-4">
+    <div class="col-md-4">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Search by name..." value="{{ q }}">
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="location" class="form-control form-control-sm" placeholder="Filter by location..." value="{{ location }}">
+    </div>
+    <div class="col-md-3">
+        <select name="difficulty" class="form-select form-select-sm">
+            <option value="">All Difficulties</option>
+            {% for d in ['Easy', 'Moderate', 'Hard'] %}
+                <option value="{{ d }}" {% if difficulty == d %}selected{% endif %}>{{ d }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-success">Filter</button>
+        <a href="{{ url_for('main.user_treks') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </div>
+</form>
+
+{% if treks %}
+<div class="row g-3">
+{% for trek in treks %}
+<div class="col-md-6 col-lg-4">
+    <div class="card h-100 p-3">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <h6 class="mb-0">{{ trek.name }}</h6>
+            {% if trek.difficulty == 'Easy' %}<span class="badge bg-success">Easy</span>
+            {% elif trek.difficulty == 'Moderate' %}<span class="badge bg-warning text-dark">Moderate</span>
+            {% else %}<span class="badge bg-danger">Hard</span>{% endif %}
+        </div>
+        <p class="text-muted small mb-1"><i class="bi bi-geo-alt"></i> {{ trek.location }}</p>
+        <p class="text-muted small mb-1"><i class="bi bi-clock"></i> {{ trek.duration }} days</p>
+        <p class="text-muted small mb-2"><i class="bi bi-people"></i> {{ trek.available_slots }} slots left</p>
+        {% if trek.start_date %}
+        <p class="text-muted small mb-2"><i class="bi bi-calendar"></i> {{ trek.start_date.strftime('%d %b %Y') }}</p>
+        {% endif %}
+        {% if trek.description %}
+        <p class="small text-muted">{{ trek.description[:80] }}{% if trek.description|length > 80 %}…{% endif %}</p>
+        {% endif %}
+        <div class="mt-auto">
+            {% if trek.available_slots > 0 %}
+            <form method="POST" action="{{ url_for('main.user_book_trek', id=trek.id) }}">
+                <button class="btn btn-success btn-sm w-100">Book Trek</button>
+            </form>
+            {% else %}
+            <button class="btn btn-secondary btn-sm w-100" disabled>Full</button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-binoculars fs-1"></i>
+    <p class="mt-2">No open treks found.</p>
+</div>
+{% endif %}
+{% endblock %}

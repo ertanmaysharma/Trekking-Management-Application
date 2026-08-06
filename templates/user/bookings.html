@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-journal-text"></i> My Bookings</h4>
+
+{% if bookings %}
+<div class="table-responsive">
+<table class="table table-hover table-bordered bg-white align-middle">
+    <thead class="table-success">
+        <tr>
+            <th>#</th>
+            <th>Trek</th>
+            <th>Location</th>
+            <th>Difficulty</th>
+            <th>Trek Status</th>
+            <th>Booked On</th>
+            <th>Booking Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for b in bookings %}
+    <tr>
+        <td>{{ b.id }}</td>
+        <td>{{ b.trek.name }}</td>
+        <td>{{ b.trek.location }}</td>
+        <td>{{ b.trek.difficulty }}</td>
+        <td>{{ b.trek.status }}</td>
+        <td>{{ b.booking_date.strftime('%d %b %Y') }}</td>
+        <td>
+            {% if b.status == 'Booked' %}<span class="badge bg-success">Booked</span>
+            {% elif b.status == 'Cancelled' %}<span class="badge bg-danger">Cancelled</span>
+            {% else %}<span class="badge bg-info">Completed</span>{% endif %}
+        </td>
+        <td>
+            {% if b.status == 'Booked' %}
+            <form method="POST" action="{{ url_for('main.user_cancel_booking', id=b.id) }}"
+                  onsubmit="return confirm('Cancel this booking?')">
+                <button class="btn btn-sm btn-outline-danger">Cancel</button>
+            </form>
+            {% else %}
+            <span class="text-muted small">—</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-calendar-x fs-1"></i>
+    <p class="mt-2">You haven't booked any treks yet.</p>
+    <a href="{{ url_for('main.user_treks') }}" class="btn btn-success">Browse Treks</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-6">
+<div class="card p-4">
+    <h4 class="mb-3"><i class="bi bi-person-circle"></i> My Profile</h4>
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <p><strong>Role:</strong> {{ user.role.capitalize() }}</p>
+    <p><strong>Joined:</strong> {{ user.created_at.strftime('%d %b %Y') }}</p>
+    <hr>
+    <h6>Update Details</h6>
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ user.email }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">New Password <span class="text-muted small">(leave blank to keep current)</span></label>
+            <input type="password" name="password" class="form-control" placeholder="Enter new password">
+        </div>
+        <button type="submit" class="btn btn-success">Save Changes</button>
+    </form>
+</div>
+</div>
+</div>
+{% endblock %}
