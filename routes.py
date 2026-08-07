@@ -1,8 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import or_
+from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy import or_, func
 from functools import wraps
 from datetime import datetime
+import json
 
 from extensions import db
 from models import User, Trek, Booking, StaffProfile
@@ -10,25 +12,12 @@ from models import User, Trek, Booking, StaffProfile
 main = Blueprint('main', __name__)
 
 
-# ── decorators ──────────────────────────────────────────────────────────────
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please login first.', 'warning')
-            return redirect(url_for('main.login'))
-        return f(*args, **kwargs)
-    return decorated
-
+# ── role decorators ──────────────────────────────────────────────────────────
 
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('main.login'))
-        u = db.session.get(User, session['user_id'])
-        if not u or u.role != 'admin':
+        if not current_user.is_authenticated or current_user.role != 'admin':
             flash('Admin access required.', 'danger')
             return redirect(url_for('main.login'))
         return f(*args, **kwargs)
@@ -38,13 +27,10 @@ def admin_required(f):
 def staff_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('main.login'))
-        u = db.session.get(User, session['user_id'])
-        if not u or u.role != 'staff':
+        if not current_user.is_authenticated or current_user.role != 'staff':
             flash('Staff access required.', 'danger')
             return redirect(url_for('main.login'))
-        if not u.staff_profile or not u.staff_profile.is_approved:
+        if not current_user.staff_profile or not current_user.staff_profile.is_approved:
             flash('Your account is pending admin approval.', 'warning')
             return redirect(url_for('main.login'))
         return f(*args, **kwargs)
@@ -54,10 +40,7 @@ def staff_required(f):
 def user_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('main.login'))
-        u = db.session.get(User, session['user_id'])
-        if not u or u.role != 'user':
+        if not current_user.is_authenticated or current_user.role != 'user':
             flash('User access required.', 'danger')
             return redirect(url_for('main.login'))
         return f(*args, **kwargs)
@@ -79,11 +62,25 @@ def register():
         username = request.form.get('username', '').strip()
         email    = request.form.get('email', '').strip()
         password = request.form.get('password', '')
+        confirm  = request.form.get('confirm_password', '')
         role     = request.form.get('role', 'user')
         contact  = request.form.get('contact', '').strip()
 
+        # backend validation
         if not username or not email or not password:
             flash('All fields are required.', 'danger')
+            return redirect(url_for('main.register'))
+
+        if len(username) < 3:
+            flash('Username must be at least 3 characters.', 'danger')
+            return redirect(url_for('main.register'))
+
+        if len(password) < 6:
+            flash('Password must be at least 6 characters.', 'danger')
+            return redirect(url_for('main.register'))
+
+        if password != confirm:
+            flash('Passwords do not match.', 'danger')
             return redirect(url_for('main.register'))
 
         if role not in ('user', 'staff'):
@@ -128,6 +125,10 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
 
+        if not username or not password:
+            flash('Username and password are required.', 'danger')
+            return redirect(url_for('main.login'))
+
         user = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password_hash, password):
@@ -143,9 +144,7 @@ def login():
                 flash('Your account is pending admin approval.', 'warning')
                 return redirect(url_for('main.login'))
 
-        session['user_id']  = user.id
-        session['username'] = user.username
-        session['role']     = user.role
+        login_user(user)
 
         if user.role == 'admin':
             return redirect(url_for('main.admin_dashboard'))
@@ -158,8 +157,9 @@ def login():
 
 
 @main.route('/logout')
+@login_required
 def logout():
-    session.clear()
+    logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.login'))
 
@@ -174,12 +174,32 @@ def admin_dashboard():
     total_staff    = User.query.filter_by(role='staff').count()
     total_bookings = Booking.query.count()
     pending_staff  = StaffProfile.query.filter_by(is_approved=False).count()
+
+    # chart data: trek status distribution
+    trek_status_rows = db.session.query(Trek.status, func.count(Trek.id)).group_by(Trek.status).all()
+    trek_status_data = {s: c for s, c in trek_status_rows}
+
+    # chart data: booking status distribution
+    booking_status_rows = db.session.query(Booking.status, func.count(Booking.id)).group_by(Booking.status).all()
+    booking_status_data = {s: c for s, c in booking_status_rows}
+
+    # chart data: top 5 treks by booking count
+    top_treks = db.session.query(Trek.name, func.count(Booking.id).label('cnt'))\
+        .join(Booking, Trek.id == Booking.trek_id, isouter=True)\
+        .group_by(Trek.id).order_by(func.count(Booking.id).desc()).limit(5).all()
+    top_trek_labels = [row[0] for row in top_treks]
+    top_trek_counts = [row[1] for row in top_treks]
+
     return render_template('admin/dashboard.html',
         total_treks=total_treks,
         total_users=total_users,
         total_staff=total_staff,
         total_bookings=total_bookings,
-        pending_staff=pending_staff
+        pending_staff=pending_staff,
+        trek_status_json=json.dumps(trek_status_data),
+        booking_status_json=json.dumps(booking_status_data),
+        top_trek_labels=json.dumps(top_trek_labels),
+        top_trek_counts=json.dumps(top_trek_counts),
     )
 
 
@@ -205,17 +225,34 @@ def admin_create_trek():
         end_date    = request.form.get('end_date')
         description = request.form.get('description', '').strip()
 
-        if not name or not location or not difficulty or not duration or not total_slots:
-            flash('Please fill all required fields.', 'danger')
+        # backend validation
+        errors = []
+        if not name:
+            errors.append('Trek name is required.')
+        if not location:
+            errors.append('Location is required.')
+        if difficulty not in ('Easy', 'Moderate', 'Hard'):
+            errors.append('Invalid difficulty.')
+        if not duration or int(duration) < 1:
+            errors.append('Duration must be at least 1 day.')
+        if not total_slots or int(total_slots) < 1:
+            errors.append('Total slots must be at least 1.')
+        if start_date and end_date and start_date > end_date:
+            errors.append('End date must be after start date.')
+
+        if errors:
+            for e in errors:
+                flash(e, 'danger')
             return redirect(url_for('main.admin_create_trek'))
 
+        slots = int(total_slots)
         trek = Trek(
             name=name,
             location=location,
             difficulty=difficulty,
             duration=int(duration),
-            total_slots=int(total_slots),
-            available_slots=int(total_slots),
+            total_slots=slots,
+            available_slots=slots,
             status=status,
             description=description,
             start_date=datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None,
@@ -234,17 +271,30 @@ def admin_create_trek():
 def admin_edit_trek(id):
     trek = db.get_or_404(Trek, id)
     if request.method == 'POST':
-        trek.name        = request.form.get('name', trek.name).strip()
-        trek.location    = request.form.get('location', trek.location).strip()
-        trek.difficulty  = request.form.get('difficulty', trek.difficulty)
-        trek.duration    = int(request.form.get('duration', trek.duration))
-        trek.total_slots = int(request.form.get('total_slots', trek.total_slots))
+        name        = request.form.get('name', '').strip()
+        location    = request.form.get('location', '').strip()
+        difficulty  = request.form.get('difficulty')
+        duration    = request.form.get('duration')
+        total_slots = request.form.get('total_slots')
+        start_date  = request.form.get('start_date')
+        end_date    = request.form.get('end_date')
+
+        if not name or not location:
+            flash('Name and location are required.', 'danger')
+            return redirect(url_for('main.admin_edit_trek', id=id))
+        if start_date and end_date and start_date > end_date:
+            flash('End date must be after start date.', 'danger')
+            return redirect(url_for('main.admin_edit_trek', id=id))
+
+        trek.name        = name
+        trek.location    = location
+        trek.difficulty  = difficulty
+        trek.duration    = int(duration)
+        trek.total_slots = int(total_slots)
         trek.status      = request.form.get('status', trek.status)
         trek.description = request.form.get('description', '').strip()
-        start_date = request.form.get('start_date')
-        end_date   = request.form.get('end_date')
-        trek.start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
-        trek.end_date   = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+        trek.start_date  = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+        trek.end_date    = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
         db.session.commit()
         flash('Trek updated.', 'success')
         return redirect(url_for('main.admin_treks'))
@@ -366,18 +416,28 @@ def admin_search():
 @main.route('/staff/dashboard')
 @staff_required
 def staff_dashboard():
-    user = db.session.get(User, session['user_id'])
-    treks = Trek.query.filter_by(assigned_staff_id=user.id).all()
-    return render_template('staff/dashboard.html', treks=treks, user=user)
+    treks = Trek.query.filter_by(assigned_staff_id=current_user.id).all()
+
+    # chart: participants per trek
+    chart_labels = [t.name for t in treks]
+    chart_data   = [
+        Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        for t in treks
+    ]
+
+    return render_template('staff/dashboard.html',
+        treks=treks,
+        chart_labels=json.dumps(chart_labels),
+        chart_data=json.dumps(chart_data),
+    )
 
 
 @main.route('/staff/treks/<int:id>', methods=['GET', 'POST'])
 @staff_required
 def staff_trek_detail(id):
     trek = db.get_or_404(Trek, id)
-    user = db.session.get(User, session['user_id'])
 
-    if trek.assigned_staff_id != user.id:
+    if trek.assigned_staff_id != current_user.id:
         flash('You are not assigned to this trek.', 'danger')
         return redirect(url_for('main.staff_dashboard'))
 
@@ -387,16 +447,25 @@ def staff_trek_detail(id):
         if action == 'update_slots':
             val = request.form.get('available_slots')
             if val is not None:
-                trek.available_slots = int(val)
+                new_slots = int(val)
+                if new_slots < 0:
+                    flash('Slots cannot be negative.', 'danger')
+                    return redirect(url_for('main.staff_trek_detail', id=id))
+                if new_slots > trek.total_slots:
+                    flash(f'Slots cannot exceed total slots ({trek.total_slots}).', 'danger')
+                    return redirect(url_for('main.staff_trek_detail', id=id))
+                trek.available_slots = new_slots
 
         elif action == 'update_status':
             new_status = request.form.get('status')
-            if new_status in ('Open', 'Closed', 'Completed'):
-                trek.status = new_status
-                if new_status == 'Completed':
-                    for b in trek.bookings:
-                        if b.status == 'Booked':
-                            b.status = 'Completed'
+            if new_status not in ('Open', 'Closed', 'Completed'):
+                flash('Invalid status.', 'danger')
+                return redirect(url_for('main.staff_trek_detail', id=id))
+            trek.status = new_status
+            if new_status == 'Completed':
+                for b in trek.bookings:
+                    if b.status == 'Booked':
+                        b.status = 'Completed'
 
         db.session.commit()
         flash('Trek updated.', 'success')
@@ -411,10 +480,20 @@ def staff_trek_detail(id):
 @main.route('/user/dashboard')
 @user_required
 def user_dashboard():
-    user = db.session.get(User, session['user_id'])
-    my_bookings = Booking.query.filter_by(user_id=user.id).order_by(Booking.booking_date.desc()).limit(5).all()
+    my_bookings = Booking.query.filter_by(user_id=current_user.id)\
+        .order_by(Booking.booking_date.desc()).limit(5).all()
     open_treks  = Trek.query.filter_by(status='Open').limit(6).all()
-    return render_template('user/dashboard.html', user=user, my_bookings=my_bookings, open_treks=open_treks)
+
+    # chart: my booking status distribution
+    booking_rows = db.session.query(Booking.status, func.count(Booking.id))\
+        .filter_by(user_id=current_user.id).group_by(Booking.status).all()
+    booking_chart = {s: c for s, c in booking_rows}
+
+    return render_template('user/dashboard.html',
+        my_bookings=my_bookings,
+        open_treks=open_treks,
+        booking_chart_json=json.dumps(booking_chart),
+    )
 
 
 @main.route('/user/treks')
@@ -439,7 +518,6 @@ def user_treks():
 @main.route('/user/treks/<int:id>/book', methods=['POST'])
 @user_required
 def user_book_trek(id):
-    user = db.session.get(User, session['user_id'])
     trek = db.get_or_404(Trek, id)
 
     if trek.status != 'Open':
@@ -450,12 +528,14 @@ def user_book_trek(id):
         flash('No available slots for this trek.', 'danger')
         return redirect(url_for('main.user_treks'))
 
-    already = Booking.query.filter_by(user_id=user.id, trek_id=id, status='Booked').first()
+    already = Booking.query.filter_by(
+        user_id=current_user.id, trek_id=id, status='Booked'
+    ).first()
     if already:
         flash('You have already booked this trek.', 'warning')
         return redirect(url_for('main.user_treks'))
 
-    booking = Booking(user_id=user.id, trek_id=id)
+    booking = Booking(user_id=current_user.id, trek_id=id)
     trek.available_slots -= 1
     db.session.add(booking)
     db.session.commit()
@@ -467,18 +547,17 @@ def user_book_trek(id):
 @main.route('/user/bookings')
 @user_required
 def user_bookings():
-    user = db.session.get(User, session['user_id'])
-    bookings = Booking.query.filter_by(user_id=user.id).order_by(Booking.booking_date.desc()).all()
-    return render_template('user/bookings.html', bookings=bookings, user=user)
+    bookings = Booking.query.filter_by(user_id=current_user.id)\
+        .order_by(Booking.booking_date.desc()).all()
+    return render_template('user/bookings.html', bookings=bookings)
 
 
 @main.route('/user/bookings/<int:id>/cancel', methods=['POST'])
 @user_required
 def user_cancel_booking(id):
-    user    = db.session.get(User, session['user_id'])
     booking = db.get_or_404(Booking, id)
 
-    if booking.user_id != user.id:
+    if booking.user_id != current_user.id:
         flash('Not your booking.', 'danger')
         return redirect(url_for('main.user_bookings'))
 
@@ -496,24 +575,29 @@ def user_cancel_booking(id):
 @main.route('/user/profile', methods=['GET', 'POST'])
 @user_required
 def user_profile():
-    user = db.session.get(User, session['user_id'])
-
     if request.method == 'POST':
         new_email    = request.form.get('email', '').strip()
         new_password = request.form.get('password', '').strip()
 
-        if new_email and new_email != user.email:
+        if not new_email:
+            flash('Email cannot be empty.', 'danger')
+            return redirect(url_for('main.user_profile'))
+
+        if new_email != current_user.email:
             taken = User.query.filter_by(email=new_email).first()
             if taken:
                 flash('Email already in use.', 'danger')
                 return redirect(url_for('main.user_profile'))
-            user.email = new_email
+            current_user.email = new_email
 
         if new_password:
-            user.password_hash = generate_password_hash(new_password)
+            if len(new_password) < 6:
+                flash('Password must be at least 6 characters.', 'danger')
+                return redirect(url_for('main.user_profile'))
+            current_user.password_hash = generate_password_hash(new_password)
 
         db.session.commit()
         flash('Profile updated.', 'success')
         return redirect(url_for('main.user_profile'))
 
-    return render_template('user/profile.html', user=user)
+    return render_template('user/profile.html', user=current_user)

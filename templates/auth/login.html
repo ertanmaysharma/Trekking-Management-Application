@@ -6,20 +6,39 @@
     <div class="col-md-5">
         <div class="card p-4 mt-5">
             <h4 class="mb-3 text-center text-success"><i class="bi bi-person-circle"></i> Login</h4>
-            <form method="POST">
+            <form method="POST" id="loginForm" novalidate>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required autofocus>
+                    <input type="text" name="username" class="form-control" id="loginUser" required autofocus>
+                    <div class="invalid-feedback">Username is required.</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+                    <input type="password" name="password" class="form-control" id="loginPass" required>
+                    <div class="invalid-feedback">Password is required.</div>
                 </div>
                 <button type="submit" class="btn btn-success w-100">Login</button>
             </form>
             <hr>
-            <p class="text-center mb-0">New here? <a href="{{ url_for('main.register') }}">Register</a></p>
+            <p class="text-center mb-0">New here? <a href="{{ url_for('main.register') }}">Create an account</a></p>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+        let valid = true;
+        const user = document.getElementById('loginUser');
+        const pass = document.getElementById('loginPass');
+
+        [user, pass].forEach(el => el.classList.remove('is-invalid'));
+
+        if (!user.value.trim()) { user.classList.add('is-invalid'); valid = false; }
+        if (!pass.value)        { pass.classList.add('is-invalid'); valid = false; }
+
+        if (!valid) e.preventDefault();
+    });
+</script>
 {% endblock %}

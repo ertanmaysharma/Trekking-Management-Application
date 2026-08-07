@@ -1,29 +1,32 @@
 {% extends 'base.html' %}
 {% block title %}Admin Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
 <h4 class="mb-4"><i class="bi bi-speedometer2"></i> Admin Dashboard</h4>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card border-success p-3">
             <div class="text-muted small">Total Treks</div>
             <div class="fs-3 fw-bold text-success">{{ total_treks }}</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card border-primary p-3">
             <div class="text-muted small">Total Users</div>
             <div class="fs-3 fw-bold text-primary">{{ total_users }}</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card border-info p-3">
             <div class="text-muted small">Total Staff</div>
             <div class="fs-3 fw-bold text-info">{{ total_staff }}</div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-6 col-md-3">
         <div class="card stat-card border-warning p-3">
             <div class="text-muted small">Total Bookings</div>
             <div class="fs-3 fw-bold text-warning">{{ total_bookings }}</div>
@@ -32,34 +35,100 @@
 </div>
 
 {% if pending_staff > 0 %}
-<div class="alert alert-warning">
-    <i class="bi bi-exclamation-triangle"></i>
-    <strong>{{ pending_staff }}</strong> staff registration(s) pending approval.
-    <a href="{{ url_for('main.admin_staff') }}" class="alert-link">Review now</a>
+<div class="alert alert-warning d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <div><strong>{{ pending_staff }}</strong> staff registration(s) pending approval.
+    <a href="{{ url_for('main.admin_staff') }}" class="alert-link">Review now &rarr;</a></div>
 </div>
 {% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h6 class="text-muted mb-3">Trek Status Distribution</h6>
+            <canvas id="trekStatusChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h6 class="text-muted mb-3">Booking Status Distribution</h6>
+            <canvas id="bookingStatusChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3">
+            <h6 class="text-muted mb-3">Top Treks by Bookings</h6>
+            <canvas id="topTreksChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
 
 <div class="row g-3">
     <div class="col-md-4">
         <div class="card p-3">
             <h6>Manage Treks</h6>
             <p class="text-muted small">Create, edit, delete treks and assign staff.</p>
-            <a href="{{ url_for('main.admin_treks') }}" class="btn btn-success btn-sm">Go to Treks</a>
+            <a href="{{ url_for('main.admin_treks') }}" class="btn btn-success btn-sm">Go to Treks &rarr;</a>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-3">
             <h6>Manage Staff</h6>
             <p class="text-muted small">Approve or blacklist trek staff.</p>
-            <a href="{{ url_for('main.admin_staff') }}" class="btn btn-info btn-sm text-white">Go to Staff</a>
+            <a href="{{ url_for('main.admin_staff') }}" class="btn btn-info btn-sm text-white">Go to Staff &rarr;</a>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card p-3">
             <h6>View Bookings</h6>
             <p class="text-muted small">See all trek bookings across users.</p>
-            <a href="{{ url_for('main.admin_bookings') }}" class="btn btn-warning btn-sm">Go to Bookings</a>
+            <a href="{{ url_for('main.admin_bookings') }}" class="btn btn-warning btn-sm">Go to Bookings &rarr;</a>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const trekStatusData = {{ trek_status_json | safe }};
+    const bookingStatusData = {{ booking_status_json | safe }};
+    const topTrekLabels = {{ top_trek_labels | safe }};
+    const topTrekCounts = {{ top_trek_counts | safe }};
+
+    const palette = ['#198754', '#0d6efd', '#ffc107', '#dc3545', '#0dcaf0', '#6f42c1'];
+
+    new Chart(document.getElementById('trekStatusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(trekStatusData),
+            datasets: [{ data: Object.values(trekStatusData), backgroundColor: palette }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+
+    new Chart(document.getElementById('bookingStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(bookingStatusData),
+            datasets: [{ data: Object.values(bookingStatusData), backgroundColor: ['#198754', '#dc3545', '#0dcaf0'] }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+
+    new Chart(document.getElementById('topTreksChart'), {
+        type: 'bar',
+        data: {
+            labels: topTrekLabels.length ? topTrekLabels : ['No data'],
+            datasets: [{
+                label: 'Bookings',
+                data: topTrekCounts.length ? topTrekCounts : [0],
+                backgroundColor: '#198754'
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+    });
+</script>
 {% endblock %}

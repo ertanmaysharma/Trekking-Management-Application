@@ -5,16 +5,22 @@
 <div class="row justify-content-center">
 <div class="col-md-8">
 <div class="card p-4">
-    <h4 class="mb-3">{% if trek %}<i class="bi bi-pencil"></i> Edit Trek{% else %}<i class="bi bi-plus-circle"></i> Create Trek{% endif %}</h4>
-    <form method="POST">
+    <h4 class="mb-3">
+        {% if trek %}<i class="bi bi-pencil"></i> Edit Trek{% else %}<i class="bi bi-plus-circle"></i> Create Trek{% endif %}
+    </h4>
+    <form method="POST" id="trekForm" novalidate>
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label class="form-label">Trek Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control" value="{{ trek.name if trek else '' }}" required>
+                <input type="text" name="name" class="form-control" id="trekName"
+                       value="{{ trek.name if trek else '' }}" minlength="2" maxlength="100" required>
+                <div class="invalid-feedback">Trek name is required (min 2 characters).</div>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Location <span class="text-danger">*</span></label>
-                <input type="text" name="location" class="form-control" value="{{ trek.location if trek else '' }}" required>
+                <input type="text" name="location" class="form-control" id="trekLocation"
+                       value="{{ trek.location if trek else '' }}" required>
+                <div class="invalid-feedback">Location is required.</div>
             </div>
         </div>
         <div class="row">
@@ -28,13 +34,15 @@
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">Duration (days) <span class="text-danger">*</span></label>
-                <input type="number" name="duration" class="form-control" min="1"
-                       value="{{ trek.duration if trek else '' }}" required>
+                <input type="number" name="duration" class="form-control" id="trekDuration"
+                       min="1" max="365" value="{{ trek.duration if trek else '' }}" required>
+                <div class="invalid-feedback">Duration must be at least 1 day.</div>
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">Total Slots <span class="text-danger">*</span></label>
-                <input type="number" name="total_slots" class="form-control" min="1"
-                       value="{{ trek.total_slots if trek else '' }}" required>
+                <input type="number" name="total_slots" class="form-control" id="trekSlots"
+                       min="1" max="1000" value="{{ trek.total_slots if trek else '' }}" required>
+                <div class="invalid-feedback">Total slots must be at least 1.</div>
             </div>
         </div>
         <div class="row">
@@ -48,25 +56,60 @@
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">Start Date</label>
-                <input type="date" name="start_date" class="form-control"
+                <input type="date" name="start_date" class="form-control" id="startDate"
                        value="{{ trek.start_date.strftime('%Y-%m-%d') if trek and trek.start_date else '' }}">
             </div>
             <div class="col-md-4 mb-3">
                 <label class="form-label">End Date</label>
-                <input type="date" name="end_date" class="form-control"
+                <input type="date" name="end_date" class="form-control" id="endDate"
                        value="{{ trek.end_date.strftime('%Y-%m-%d') if trek and trek.end_date else '' }}">
+                <div class="invalid-feedback" id="dateFeedback">End date must be after start date.</div>
             </div>
         </div>
         <div class="mb-3">
             <label class="form-label">Description</label>
-            <textarea name="description" class="form-control" rows="3">{{ trek.description if trek else '' }}</textarea>
+            <textarea name="description" class="form-control" rows="3"
+                      maxlength="500">{{ trek.description if trek else '' }}</textarea>
+            <div class="form-text">Max 500 characters.</div>
         </div>
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-success">{% if trek %}Update Trek{% else %}Create Trek{% endif %}</button>
-            <a href="{{ url_for('main.admin_treks') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">
+                {% if trek %}Update Trek{% else %}Create Trek{% endif %}
+            </button>
+            <a href="{{ url_for('main.admin_treks') }}" class="btn btn-outline-secondary">Cancel</a>
         </div>
     </form>
 </div>
 </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('trekForm').addEventListener('submit', function (e) {
+        let valid = true;
+
+        const name = document.getElementById('trekName');
+        const loc  = document.getElementById('trekLocation');
+        const dur  = document.getElementById('trekDuration');
+        const slots = document.getElementById('trekSlots');
+        const start = document.getElementById('startDate');
+        const end   = document.getElementById('endDate');
+
+        [name, loc, dur, slots, end].forEach(el => el.classList.remove('is-invalid'));
+
+        if (name.value.trim().length < 2) { name.classList.add('is-invalid'); valid = false; }
+        if (!loc.value.trim())            { loc.classList.add('is-invalid');  valid = false; }
+        if (!dur.value || dur.value < 1)  { dur.classList.add('is-invalid');  valid = false; }
+        if (!slots.value || slots.value < 1) { slots.classList.add('is-invalid'); valid = false; }
+
+        if (start.value && end.value && end.value < start.value) {
+            end.classList.add('is-invalid');
+            document.getElementById('dateFeedback').style.display = 'block';
+            valid = false;
+        }
+
+        if (!valid) e.preventDefault();
+    });
+</script>
 {% endblock %}

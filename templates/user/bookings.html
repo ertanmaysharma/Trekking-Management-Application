@@ -11,11 +11,11 @@
         <tr>
             <th>#</th>
             <th>Trek</th>
-            <th>Location</th>
-            <th>Difficulty</th>
+            <th class="d-none d-md-table-cell">Location</th>
+            <th class="d-none d-md-table-cell">Difficulty</th>
             <th>Trek Status</th>
-            <th>Booked On</th>
-            <th>Booking Status</th>
+            <th class="d-none d-sm-table-cell">Booked On</th>
+            <th>Status</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -24,10 +24,10 @@
     <tr>
         <td>{{ b.id }}</td>
         <td>{{ b.trek.name }}</td>
-        <td>{{ b.trek.location }}</td>
-        <td>{{ b.trek.difficulty }}</td>
-        <td>{{ b.trek.status }}</td>
-        <td>{{ b.booking_date.strftime('%d %b %Y') }}</td>
+        <td class="d-none d-md-table-cell">{{ b.trek.location }}</td>
+        <td class="d-none d-md-table-cell">{{ b.trek.difficulty }}</td>
+        <td><span class="badge bg-secondary">{{ b.trek.status }}</span></td>
+        <td class="d-none d-sm-table-cell text-muted small">{{ b.booking_date.strftime('%d %b %Y') }}</td>
         <td>
             {% if b.status == 'Booked' %}<span class="badge bg-success">Booked</span>
             {% elif b.status == 'Cancelled' %}<span class="badge bg-danger">Cancelled</span>
@@ -40,7 +40,7 @@
                 <button class="btn btn-sm btn-outline-danger">Cancel</button>
             </form>
             {% else %}
-            <span class="text-muted small">—</span>
+            <span class="text-muted small">&mdash;</span>
             {% endif %}
         </td>
     </tr>
@@ -50,9 +50,9 @@
 </div>
 {% else %}
 <div class="text-center text-muted py-5">
-    <i class="bi bi-calendar-x fs-1"></i>
-    <p class="mt-2">You haven't booked any treks yet.</p>
-    <a href="{{ url_for('main.user_treks') }}" class="btn btn-success">Browse Treks</a>
+    <i class="bi bi-calendar-x fs-1 d-block mb-2"></i>
+    You haven't booked any treks yet.
+    <div class="mt-3"><a href="{{ url_for('main.user_treks') }}" class="btn btn-success">Browse Treks</a></div>
 </div>
 {% endif %}
 {% endblock %}

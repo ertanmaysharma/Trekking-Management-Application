@@ -4,20 +4,30 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-md-6">
-        <div class="card p-4 mt-4">
-            <h4 class="mb-3 text-center text-success"><i class="bi bi-person-plus"></i> Register</h4>
-            <form method="POST">
+        <div class="card p-4 mt-3">
+            <h4 class="mb-3 text-center text-success"><i class="bi bi-person-plus"></i> Create Account</h4>
+            <form method="POST" id="registerForm" novalidate>
                 <div class="mb-3">
-                    <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required>
+                    <label class="form-label">Username <span class="text-danger">*</span></label>
+                    <input type="text" name="username" class="form-control" id="username"
+                           minlength="3" maxlength="80" required>
+                    <div class="invalid-feedback">Username must be at least 3 characters.</div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="email" class="form-control" required>
+                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control" id="email" required>
+                    <div class="invalid-feedback">Enter a valid email address.</div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+                    <label class="form-label">Password <span class="text-danger">*</span></label>
+                    <input type="password" name="password" class="form-control" id="password"
+                           minlength="6" required>
+                    <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                    <input type="password" name="confirm_password" class="form-control" id="confirmPassword" required>
+                    <div class="invalid-feedback">Passwords must match.</div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Register as</label>
@@ -26,10 +36,10 @@
                         <option value="staff">Trek Staff</option>
                     </select>
                 </div>
-                <div class="mb-3" id="contactField" style="display:none;">
+                <div class="mb-3 d-none" id="contactField">
                     <label class="form-label">Contact Number</label>
-                    <input type="text" name="contact" class="form-control">
-                    <small class="text-muted">Staff accounts require admin approval before login.</small>
+                    <input type="text" name="contact" class="form-control" placeholder="e.g. 9876543210">
+                    <div class="form-text text-muted">Staff accounts require admin approval before you can log in.</div>
                 </div>
                 <button type="submit" class="btn btn-success w-100">Create Account</button>
             </form>
@@ -38,12 +48,49 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
     const roleSelect = document.getElementById('roleSelect');
     const contactField = document.getElementById('contactField');
-    roleSelect.addEventListener('change', function() {
-        contactField.style.display = this.value === 'staff' ? 'block' : 'none';
+
+    roleSelect.addEventListener('change', function () {
+        contactField.classList.toggle('d-none', this.value !== 'staff');
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', function (e) {
+        let valid = true;
+
+        const username = document.getElementById('username');
+        const email = document.getElementById('email');
+        const password = document.getElementById('password');
+        const confirm = document.getElementById('confirmPassword');
+
+        [username, email, password, confirm].forEach(el => el.classList.remove('is-invalid'));
+
+        if (username.value.trim().length < 3) {
+            username.classList.add('is-invalid');
+            valid = false;
+        }
+
+        // basic email check
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
+            email.classList.add('is-invalid');
+            valid = false;
+        }
+
+        if (password.value.length < 6) {
+            password.classList.add('is-invalid');
+            valid = false;
+        }
+
+        if (confirm.value !== password.value) {
+            confirm.classList.add('is-invalid');
+            valid = false;
+        }
+
+        if (!valid) e.preventDefault();
     });
 </script>
 {% endblock %}

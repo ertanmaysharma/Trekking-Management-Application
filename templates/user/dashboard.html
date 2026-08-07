@@ -1,11 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}My Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
-<h4 class="mb-4"><i class="bi bi-house"></i> Welcome, {{ user.username }}!</h4>
+<h4 class="mb-4"><i class="bi bi-house"></i> Welcome, {{ current_user.username }}!</h4>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-6 col-md-4">
         <div class="card stat-card border-success p-3">
             <div class="text-muted small">Active Bookings</div>
             <div class="fs-3 fw-bold text-success">
@@ -13,7 +16,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-6 col-md-4">
         <div class="card stat-card border-info p-3">
             <div class="text-muted small">Completed Treks</div>
             <div class="fs-3 fw-bold text-info">
@@ -21,29 +24,36 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-6 col-md-4">
         <div class="card stat-card border-primary p-3">
-            <div class="text-muted small">Open Treks Available</div>
+            <div class="text-muted small">Open Treks</div>
             <div class="fs-3 fw-bold text-primary">{{ open_treks | length }}</div>
         </div>
     </div>
 </div>
 
 <div class="row g-3">
-    <div class="col-md-7">
+    <div class="col-md-5">
         <div class="card p-3">
+            <h6 class="text-muted mb-3">My Booking History</h6>
+            <canvas id="bookingChart" style="max-height:200px;"></canvas>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="card p-3 mb-3">
             <div class="d-flex justify-content-between mb-2">
                 <h6 class="mb-0">Recent Bookings</h6>
-                <a href="{{ url_for('main.user_bookings') }}" class="small">View all</a>
+                <a href="{{ url_for('main.user_bookings') }}" class="small">View all &rarr;</a>
             </div>
             {% if my_bookings %}
+            <div class="table-responsive">
             <table class="table table-sm mb-0">
                 <thead><tr><th>Trek</th><th>Date</th><th>Status</th></tr></thead>
                 <tbody>
                 {% for b in my_bookings %}
                 <tr>
                     <td>{{ b.trek.name }}</td>
-                    <td>{{ b.booking_date.strftime('%d %b') }}</td>
+                    <td class="text-muted small">{{ b.booking_date.strftime('%d %b') }}</td>
                     <td>
                         {% if b.status == 'Booked' %}<span class="badge bg-success">Booked</span>
                         {% elif b.status == 'Cancelled' %}<span class="badge bg-danger">Cancelled</span>
@@ -53,21 +63,25 @@
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
             <p class="text-muted small mb-0">No bookings yet. <a href="{{ url_for('main.user_treks') }}">Browse treks</a>.</p>
             {% endif %}
         </div>
-    </div>
-    <div class="col-md-5">
+
         <div class="card p-3">
             <div class="d-flex justify-content-between mb-2">
                 <h6 class="mb-0">Available Treks</h6>
-                <a href="{{ url_for('main.user_treks') }}" class="small">See all</a>
+                <a href="{{ url_for('main.user_treks') }}" class="small">See all &rarr;</a>
             </div>
             {% for t in open_treks %}
             <div class="border-bottom py-2">
                 <div class="fw-semibold small">{{ t.name }}</div>
-                <div class="text-muted small">{{ t.location }} &bull; {{ t.difficulty }} &bull; {{ t.available_slots }} slots</div>
+                <div class="text-muted small">
+                    <i class="bi bi-geo-alt"></i> {{ t.location }} &bull;
+                    {{ t.difficulty }} &bull;
+                    {{ t.available_slots }} slots left
+                </div>
             </div>
             {% else %}
             <p class="text-muted small mb-0">No open treks right now.</p>
@@ -75,4 +89,24 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const bookingData = {{ booking_chart_json | safe }};
+    const labels = Object.keys(bookingData);
+    const counts = Object.values(bookingData);
+
+    new Chart(document.getElementById('bookingChart'), {
+        type: 'doughnut',
+        data: {
+            labels: labels.length ? labels : ['No bookings'],
+            datasets: [{
+                data: counts.length ? counts : [1],
+                backgroundColor: ['#198754', '#dc3545', '#0dcaf0']
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+</script>
 {% endblock %}
