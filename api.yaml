@@ -1,0 +1,241 @@
+openapi: 3.0.3
+
+info:
+  title: Trek Management System API
+  version: 1.0.0
+  description: |
+    REST API for the Trek Management System.
+    Provides endpoints for managing treks, users, bookings, and dashboard statistics.
+
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+
+paths:
+
+  /treks:
+    get:
+      summary: Get all treks
+      description: Returns a list of treks. Supports filtering.
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: difficulty
+          schema:
+            type: string
+        - in: query
+          name: location
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of treks returned successfully
+
+    post:
+      summary: Create a new trek
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrekInput'
+      responses:
+        '201':
+          description: Trek created successfully
+        '400':
+          description: Invalid request
+        '403':
+          description: Admin access required
+
+  /treks/{id}:
+    get:
+      summary: Get trek details
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Trek details returned
+
+    put:
+      summary: Update trek
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrekInput'
+      responses:
+        '200':
+          description: Trek updated
+
+    delete:
+      summary: Delete trek
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Trek deleted
+
+  /users:
+    get:
+      summary: Get all users
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: query
+          name: role
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User list returned
+
+  /users/{id}:
+    get:
+      summary: Get user details
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User details returned
+
+  /bookings:
+    get:
+      summary: Get bookings
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Booking list returned
+
+    post:
+      summary: Create booking
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trek_id
+              properties:
+                trek_id:
+                  type: integer
+      responses:
+        '201':
+          description: Booking created successfully
+        '400':
+          description: Invalid request
+
+  /bookings/{id}:
+    get:
+      summary: Get booking details
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking details returned
+
+    delete:
+      summary: Cancel booking
+      security:
+        - sessionAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking cancelled
+
+  /stats:
+    get:
+      summary: Get admin dashboard statistics
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Dashboard statistics returned
+
+components:
+
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: session
+
+  schemas:
+
+    TrekInput:
+      type: object
+      required:
+        - name
+        - location
+        - difficulty
+        - duration
+        - total_slots
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        difficulty:
+          type: string
+          enum:
+            - Easy
+            - Moderate
+            - Hard
+        duration:
+          type: integer
+        total_slots:
+          type: integer
+        available_slots:
+          type: integer
+        status:
+          type: string
+          enum:
+            - Pending
+            - Open
+            - Closed
+            - Completed
+        description:
+          type: string
